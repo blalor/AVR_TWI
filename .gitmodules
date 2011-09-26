@@ -1,0 +1,6 @@
+[submodule "test/support/CppUTest"]
+	path = test/support/CppUTest
+	url = https://github.com/blalor/CppUTest.git
+[submodule "test/support/MockAVR"]
+	path = test/support/MockAVR
+	url = https://github.com/blalor/MockAVR.git
