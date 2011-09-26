@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 #include "twi.h"
 
@@ -13,10 +14,15 @@
 void twi_master_init() {
     
     // set 100kHz frequency; hard-coded for 8MHz
-    TWSR |= _BV(TWPS1); // set prescaler to 16
-    TWBR  = 2;          // do the needful to set 100kHz
-    
+    TWSR = (TWSR & 0x03) | _BV(TWPS1); // set prescaler to 16
+    TWBR  = 2;                         // do the needful to set 100kHz
     
     PRR  &= ~_BV(PRTWI); // disable power reduction for TWI
-    TWCR |=  _BV(TWINT); // clear TWI interrupt flag
+    
+    // enable interrupts, enable TWI operation, clear interrupt flag
+    TWCR |= _BV(TWIE) | _BV(TWEN) | _BV(TWINT); 
+}
+
+ISR(TWI_vect) {
+    // TWCR |= _BV(TWINT); // clear TWI interrupt flag
 }

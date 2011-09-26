@@ -24,7 +24,7 @@ TEST(TWIMasterTests, ClockSpeed) {
 
 TEST(TWIMasterTests, Initialization) {
     BYTES_EQUAL(PRR,  B01111111); // PRTWI must be cleared
-    BYTES_EQUAL(TWCR, B10000000); // TWINT must be set
+    BYTES_EQUAL(TWCR, B10000101); // interrupt, TWI enabled; int flag cleared
     
     // prescaler values (TWPS1, TWPS0)
     //     00 == 1
@@ -38,7 +38,5 @@ TEST(TWIMasterTests, Initialization) {
     LONGS_EQUAL(100000, F_CPU / (16 + (2 * TWBR * prescaler)));
     
     // !! INCOMPLETE !!
-    
-    // check for TWI interrupt enabled
     // look at status flags?
 }
