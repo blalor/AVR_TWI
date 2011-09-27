@@ -54,8 +54,9 @@ TEST(TWIMasterTests, TransmitByte) {
     TWCR = 0;
     
     twi_master_transmit(dest_addr, data, data_len);
-    
-    BYTES_EQUAL(B10100101, TWCR); // TWI initialized, send start
+
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10100101, TWCR);  // TWI initialized, send start
     
     // START was sent, now trigger interrupt
     TWDR = 0;
@@ -64,8 +65,9 @@ TEST(TWIMasterTests, TransmitByte) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
-    BYTES_EQUAL(0x56,      TWDR); // addr + W
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
+    BYTES_EQUAL(0x56,      TWDR);  // addr + W
     
     // SLA+W was sent successfully; trigger interrupt
     TWDR = 0;
@@ -74,7 +76,8 @@ TEST(TWIMasterTests, TransmitByte) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(42, TWDR);
     
     // data sent successfully; trigger interrupt
@@ -84,7 +87,8 @@ TEST(TWIMasterTests, TransmitByte) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10010101, TWCR); // STOP condition
+    CHECK_FALSE(twi_master_busy()); // operation complete
+    BYTES_EQUAL(B10010101, TWCR);   // STOP condition
 }
 
 /*
@@ -99,6 +103,7 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     
     twi_master_transmit(dest_addr, data, data_len);
     
+    CHECK_TRUE(twi_master_busy()); // still busy
     BYTES_EQUAL(B10100101, TWCR); // TWI initialized, send start
     
     // START was sent, now trigger interrupt
@@ -108,8 +113,9 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
-    BYTES_EQUAL(0x54,      TWDR); // addr + W
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
+    BYTES_EQUAL(0x54,      TWDR);  // addr + W
     
     // SLA+W was sent successfully; trigger interrupt
     TWDR = 0;
@@ -118,7 +124,8 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(24, TWDR);
     
     // DATA was sent successfully; trigger interrupt
@@ -128,7 +135,8 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    CHECK_TRUE(twi_master_busy()); // still busy
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(42, TWDR);
     
     // data sent successfully; trigger interrupt
@@ -138,5 +146,6 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     
     ISR_TWI_vect();
     
-    BYTES_EQUAL(B10010101, TWCR); // STOP condition
+    CHECK_FALSE(twi_master_busy()); // operation complete
+    BYTES_EQUAL(B10010101, TWCR);   // STOP condition
 }

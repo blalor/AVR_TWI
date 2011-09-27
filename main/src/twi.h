@@ -2,6 +2,7 @@
 #define TWI_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
  * Initialize TWI as a master.
@@ -12,7 +13,12 @@ void twi_master_init(void);
  * Disables the TWI interface.
  */
 void twi_disable(void);
-     
+
+/*
+ * Tests for a pending transmit or receive operation.
+ */
+bool twi_master_busy(void);
+
 /*
  * Transmits data to a slave.
  */
