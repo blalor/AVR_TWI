@@ -86,3 +86,57 @@ TEST(TWIMasterTests, TransmitByte) {
     
     BYTES_EQUAL(B10010101, TWCR); // STOP condition
 }
+
+/*
+ * Tests transmission of two bytes.
+ */
+TEST(TWIMasterTests, Transmit2Bytes) {
+    uint8_t dest_addr = 0x2A;
+    uint8_t data[] = {24, 42};
+    uint8_t data_len = sizeof(data) / sizeof(data[0]);
+    
+    TWCR = 0;
+    
+    twi_master_transmit(dest_addr, data, data_len);
+    
+    BYTES_EQUAL(B10100101, TWCR); // TWI initialized, send start
+    
+    // START was sent, now trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x08; // START sent
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    BYTES_EQUAL(0x54,      TWDR); // addr + W
+    
+    // SLA+W was sent successfully; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x18; // SLA+W sent, ACK received
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    BYTES_EQUAL(24, TWDR);
+    
+    // DATA was sent successfully; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x28; // DATA sent, ACK received
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    BYTES_EQUAL(42, TWDR);
+    
+    // data sent successfully; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x28; // DATA sent, ACK received
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10010101, TWCR); // STOP condition
+}

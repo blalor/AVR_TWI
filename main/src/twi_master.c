@@ -11,10 +11,14 @@
 #    error illegal CPU value
 #endif
 
+#define TWDR_ENABLE (_BV(TWIE) | _BV(TWEN) | _BV(TWINT))
+
 typedef struct __tx_state {
     uint8_t dest_addr;
     uint8_t *data;
     uint8_t data_len;
+    
+    uint8_t data_index;
 } TWITxState;
 
 static TWITxState txState;
@@ -28,7 +32,7 @@ void twi_master_init() {
     PRR  &= ~_BV(PRTWI); // disable power reduction for TWI
     
     // enable interrupts, enable TWI operation, clear interrupt flag
-    TWCR |= _BV(TWIE) | _BV(TWEN) | _BV(TWINT); 
+    TWCR = TWDR_ENABLE;
 }
 
 void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uint8_t data_len) {
@@ -36,8 +40,10 @@ void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uin
     txState.data = (uint8_t *)data;
     txState.data_len = data_len;
     
+    txState.data_index = 0;
+    
     // enable TWI and interrupt, clear INT flag, send START
-    TWCR = _BV(TWINT) | _BV(TWSTA) | _BV(TWEN) | _BV(TWIE);
+    TWCR = TWDR_ENABLE | _BV(TWSTA);
 }
 
 ISR(TWI_vect) {
@@ -45,18 +51,23 @@ ISR(TWI_vect) {
         case 0x08: // START received
             // load SLA+W
             TWDR = (txState.dest_addr << 1);
-            TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWIE); // clear TWI interrupt flag
+            TWCR = TWDR_ENABLE;
             break;
         
         case 0x18: // SLA+W sent, ACK received
             // load data
-            TWDR = txState.data[0];
-            TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWIE); // clear TWI interrupt flag
+            TWDR = txState.data[txState.data_index++];
+            TWCR = TWDR_ENABLE;
             break;
         
         case 0x28: // DATA sent, ACK received
-            // all done!
-            TWCR = _BV(TWINT) | _BV(TWSTO) | _BV(TWEN) | _BV(TWIE); // clear TWI interrupt flag
+            if (txState.data_index < txState.data_len) {
+                TWDR = txState.data[txState.data_index++];
+                TWCR = TWDR_ENABLE;
+            } else {
+                // all done!
+                TWCR = TWDR_ENABLE | _BV(TWSTO);
+            }
             break;
         
         default:
