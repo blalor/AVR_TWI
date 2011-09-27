@@ -23,7 +23,8 @@ typedef struct __tx_state {
     uint8_t data_index;
 } TWITxState;
 
-static TWITxState txState;
+static volatile TWITxState txState;
+static volatile TWIStatus  twiStatus;
 
 // state variable used to determine if a send or receive operation is still
 // in progress
@@ -40,10 +41,30 @@ void twi_master_init() {
     TWCR = TWDR_ENABLE;
     
     twiBusy = false;
+    twiStatus = TWI_STATUS_IDLE;
 }
 
 bool twi_master_busy() {
     return twiBusy;
+}
+
+TWIStatus twi_get_status() {
+    TWIStatus rc = twiStatus;
+    
+    switch (rc) {
+        // transient; status reset to TWI_STATUS_IDLE after read
+        case TWI_STATUS_TX_SLA_NACK:
+        case TWI_STATUS_TX_COMPLETE:
+            twiStatus = TWI_STATUS_IDLE;
+            
+            break;
+        
+        default:
+            // no-op
+            break;
+    }
+    
+    return rc;
 }
 
 void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uint8_t data_len) {
@@ -52,6 +73,7 @@ void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uin
         ;
     
     twiBusy = true;
+    twiStatus = TWI_STATUS_TX_PENDING;
     
     txState.dest_addr = dest_addr;
     txState.data = (uint8_t *)data;
@@ -83,12 +105,21 @@ ISR(TWI_vect) {
             } else {
                 // all done!
                 twiBusy = false;
+                twiStatus = TWI_STATUS_TX_COMPLETE;
+                
                 tmpTWCR |= _BV(TWSTO); // STOP
             }
             
             break;
         
-        // case 0x20: // SLA+W sent, NACK received
+        case 0x20: // SLA+W sent, NACK received
+            // maybe the slave addr doesn't exist? just bail
+            twiBusy = false;
+            twiStatus = TWI_STATUS_TX_SLA_NACK;
+            tmpTWCR |= _BV(TWSTO); // STOP
+            
+            break;
+        
         // case 0x30: // DATA sent, NACK received
         // case 0x38: // arbitration lost sending SLA+W or DATA sent
         default:

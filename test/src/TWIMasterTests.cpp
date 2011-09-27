@@ -39,8 +39,7 @@ TEST(TWIMasterTests, Initialization) {
     // assert 100kHz i2c rate
     LONGS_EQUAL(100000, F_CPU / (16 + (2 * TWBR * prescaler)));
     
-    // !! INCOMPLETE !!
-    // look at status flags?
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
 }
 
 /*
@@ -56,6 +55,11 @@ TEST(TWIMasterTests, TransmitByte) {
     twi_master_transmit(dest_addr, data, data_len);
 
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    
+    // ensure twi_get_status continues to return …PENDING while still pending
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    
     BYTES_EQUAL(B10100101, TWCR);  // TWI initialized, send start
     
     // START was sent, now trigger interrupt
@@ -66,6 +70,7 @@ TEST(TWIMasterTests, TransmitByte) {
     ISR_TWI_vect();
     
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
     BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(0x56,      TWDR);  // addr + W
     
@@ -77,6 +82,7 @@ TEST(TWIMasterTests, TransmitByte) {
     ISR_TWI_vect();
     
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
     BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(42, TWDR);
     
@@ -88,6 +94,11 @@ TEST(TWIMasterTests, TransmitByte) {
     ISR_TWI_vect();
     
     CHECK_FALSE(twi_master_busy()); // operation complete
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_COMPLETE);
+    
+    // subsequent query should return …IDLE
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
+    
     BYTES_EQUAL(B10010101, TWCR);   // STOP condition
 }
 
@@ -104,7 +115,9 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     twi_master_transmit(dest_addr, data, data_len);
     
     CHECK_TRUE(twi_master_busy()); // still busy
-    BYTES_EQUAL(B10100101, TWCR); // TWI initialized, send start
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    BYTES_EQUAL(B10100101, TWCR);  // TWI initialized, send start
     
     // START was sent, now trigger interrupt
     TWDR = 0;
@@ -114,6 +127,8 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     ISR_TWI_vect();
     
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
     BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(0x54,      TWDR);  // addr + W
     
@@ -125,6 +140,8 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     ISR_TWI_vect();
     
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
     BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(24, TWDR);
     
@@ -136,6 +153,8 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     ISR_TWI_vect();
     
     CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
     BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
     BYTES_EQUAL(42, TWDR);
     
@@ -147,5 +166,55 @@ TEST(TWIMasterTests, Transmit2Bytes) {
     ISR_TWI_vect();
     
     CHECK_FALSE(twi_master_busy()); // operation complete
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_COMPLETE);
+    
+    // subsequent query should return …IDLE
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
+    
     BYTES_EQUAL(B10010101, TWCR);   // STOP condition
+}
+
+/*
+ * Tests failed write to slave (SLA+W).
+ */
+TEST(TWIMasterTests, FailedSlaveAddress) {
+    uint8_t dest_addr = 0x2B;
+    
+    TWCR = 0;
+    
+    twi_master_transmit(dest_addr, NULL, 0);
+
+    CHECK_TRUE(twi_master_busy()); // busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    BYTES_EQUAL(B10100101, TWCR);  // TWI initialized, send start
+    
+    // START was sent, now trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x08; // START sent
+    
+    ISR_TWI_vect();
+    
+    CHECK_TRUE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_PENDING);
+    BYTES_EQUAL(B10000101, TWCR);  // TWINT, TWEN, TWIE
+    BYTES_EQUAL(0x56,      TWDR);  // addr + W
+    
+    // SLA+W returned NACK; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x20; // SLA+W sent, NACK received
+    
+    ISR_TWI_vect();
+    
+    CHECK_FALSE(twi_master_busy()); // still busy
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_TX_SLA_NACK);
+    
+    // subsequent query should return …IDLE
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
+    
+    BYTES_EQUAL(B10010101, TWCR);   // STOP condition
+    BYTES_EQUAL(0, TWDR); // no change
 }
