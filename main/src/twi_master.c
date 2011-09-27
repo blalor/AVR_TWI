@@ -64,38 +64,38 @@ void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uin
 }
 
 ISR(TWI_vect) {
+    // default return value
+    uint8_t tmpTWCR = TWDR_ENABLE;
+    
     switch (TWSR & 0xF8) { // status register with prescaler bits masked out
         case 0x08: // START received
+        // case 0x10: // repeated START received
             // load SLA+W
             TWDR = (txState.dest_addr << 1);
-            TWCR = TWDR_ENABLE;
             
             break;
         
         case 0x18: // SLA+W sent, ACK received
-            // load first data byte
-            TWDR = txState.data[txState.data_index++];
-            TWCR = TWDR_ENABLE;
-            
-            break;
-        
         case 0x28: // DATA sent, ACK received
             if (txState.data_index < txState.data_len) {
-                // load next data byte
+                // load data byte
                 TWDR = txState.data[txState.data_index++];
-                TWCR = TWDR_ENABLE;
             } else {
                 // all done!
                 twiBusy = false;
-                TWCR = TWDR_ENABLE | _BV(TWSTO);
+                tmpTWCR |= _BV(TWSTO); // STOP
             }
             
             break;
         
+        // case 0x20: // SLA+W sent, NACK received
+        // case 0x30: // DATA sent, NACK received
+        // case 0x38: // arbitration lost sending SLA+W or DATA sent
         default:
             // @todo
             
             break;
     }
     
+    TWCR = tmpTWCR;
 }
