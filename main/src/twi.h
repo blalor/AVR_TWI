@@ -16,11 +16,16 @@ void twi_disable(void);
 /*
  * Transmits data to a slave.
  */
-uint8_t twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uint8_t data_len);
+void twi_master_transmit(const uint8_t dest_addr, const uint8_t *data, const uint8_t data_len);
 
 /*
  * Receives data from a slave.
  */
-uint8_t twi_master_receive(const uint8_t src_addr, const uint8_t *data, const uint8_t data_len);
+void twi_master_receive(const uint8_t src_addr, const uint8_t *data, const uint8_t data_len);
 
+/*
+ * Retrieves the status of the last operation.
+ */
+uint8_t twi_get_status(void);
+     
 #endif

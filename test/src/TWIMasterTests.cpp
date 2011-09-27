@@ -2,6 +2,8 @@ extern "C" {
     #include <avr/io.h>
     #include "twi.h"
     #include "8bit_binary.h"
+    
+    void ISR_TWI_vect(void);
 }
 
 #include <stdint.h>
@@ -39,4 +41,48 @@ TEST(TWIMasterTests, Initialization) {
     
     // !! INCOMPLETE !!
     // look at status flags?
+}
+
+/*
+ * Tests transmission of a single byte.
+ */
+TEST(TWIMasterTests, TransmitByte) {
+    uint8_t dest_addr = 0x2B;
+    uint8_t data[] = {42};
+    uint8_t data_len = 1;
+    
+    TWCR = 0;
+    
+    twi_master_transmit(dest_addr, data, data_len);
+    
+    BYTES_EQUAL(B10100101, TWCR); // TWI initialized, send start
+    
+    // START was sent, now trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x08; // START sent
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    BYTES_EQUAL(0x56,      TWDR); // addr + W
+    
+    // SLA+W was sent successfully; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x18; // SLA+W sent, ACK received
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10000101, TWCR); // TWINT, TWEN, TWIE
+    BYTES_EQUAL(42, TWDR);
+    
+    // data sent successfully; trigger interrupt
+    TWDR = 0;
+    TWCR = 0;
+    TWSR = 0x28; // DATA sent, ACK received
+    
+    ISR_TWI_vect();
+    
+    BYTES_EQUAL(B10010101, TWCR); // STOP condition
 }
