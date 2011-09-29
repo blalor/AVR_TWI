@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum __twi_speeds {
+    TWI_SPEED_100MHz,
+    TWI_SPEED_400MHz
+} TWISpeed;
+
 typedef enum __twi_statii {
     // default state
     TWI_STATUS_IDLE,
@@ -19,7 +24,7 @@ typedef enum __twi_statii {
 /*
  * Initialize TWI as a master.
  */
-void twi_master_init(void);
+void twi_master_init(const TWISpeed busSpeed);
 
 // /*
 //  * Disables the TWI interface.

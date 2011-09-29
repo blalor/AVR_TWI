@@ -16,7 +16,7 @@ TEST_GROUP(TWIMasterTests) {
         PRR = 0xff;
         TWCR = 0;
         
-        twi_master_init();
+        twi_master_init(TWI_SPEED_100MHz);
     }
 };
 
@@ -26,7 +26,9 @@ TEST(TWIMasterTests, ClockSpeed) {
 
 TEST(TWIMasterTests, Initialization) {
     BYTES_EQUAL(PRR,  B01111111); // PRTWI must be cleared
-    BYTES_EQUAL(TWCR, B10000101); // interrupt, TWI enabled; int flag cleared
+
+    // interrupt, TWI enabled; int flag cleared, STOP sent
+    BYTES_EQUAL(TWCR, B10010101);
     
     // prescaler values (TWPS1, TWPS0)
     //     00 == 1
@@ -34,10 +36,26 @@ TEST(TWIMasterTests, Initialization) {
     //     10 == 16
     //     11 == 64
     // so 11 is 3, 2**(3 * 2) is 64.  holds for 0, 1, 2 and 3.
-    unsigned int prescaler = pow(2, ((0x03 & TWSR) * 2));
+    unsigned int prescaler = pow(2, ((TWSR & 0x03) * 2));
     
     // assert 100kHz i2c rate
     LONGS_EQUAL(100000, F_CPU / (16 + (2 * TWBR * prescaler)));
+    
+    CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
+}
+
+TEST(TWIMasterTests, Four00MHzMode) {
+    twi_master_init(TWI_SPEED_400MHz);
+
+    BYTES_EQUAL(PRR,  B01111111); // PRTWI must be cleared
+
+    // interrupt, TWI enabled; int flag cleared, STOP sent
+    BYTES_EQUAL(TWCR, B10010101);
+    
+    unsigned int prescaler = pow(2, ((TWSR & 0x03) * 2));
+    
+    // assert 400kHz i2c rate
+    LONGS_EQUAL(400000, F_CPU / (16 + (2 * TWBR * prescaler)));
     
     CHECK_TRUE(twi_get_status() == TWI_STATUS_IDLE);
 }
