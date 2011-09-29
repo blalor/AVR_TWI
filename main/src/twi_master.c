@@ -6,7 +6,12 @@
 
 #include "twi.h"
 
-#if !(defined (__AVR_ATmega328P__) || defined (__AVR_ATmega328__) || defined (__AVR_ATmega168P__))
+#if !( \
+      defined (__AVR_ATmega328P__) || \
+	  defined (__AVR_ATmega328__)  || \
+	  defined (__AVR_ATmega168P__) || \
+	  defined (__AVR_ATmega168__)     \
+	)
 #    error Unsupported chip!
 #endif
 

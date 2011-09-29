@@ -52,7 +52,7 @@ CFLAGS   = --std=c99 -Wall -Werror -fdiagnostics-show-option -Os -g
 ARFLAGS  = rs
 # add "v" for verbose
 
-DEVICE_SPECIFIC_LIB = libusi_serial_$(DEVICE).a
+DEVICE_SPECIFIC_LIB = libtwi_$(DEVICE).a
 
 # choose minimal printf implementation
 # http://www.nongnu.org/avr-libc/user-manual/group__avr__stdio.html#gaa3b98c0d17b35642c0f3e4649092b9f1
@@ -128,3 +128,8 @@ clean_objs:
 	$(SILENT) rm -f $(ALL_OBJS) $(DEP_FILES)
 
 # file targets:
+libtwi.a: src/twi_master.o
+
+device-specific-lib: clean_objs libtwi.a
+	@echo "renaming libtwi.a to $(DEVICE_SPECIFIC_LIB)"
+	@mv libtwi.a $(DEVICE_SPECIFIC_LIB)
